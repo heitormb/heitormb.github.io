@@ -2,7 +2,14 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 const GRID_SIZE = 8;
-const CELL_SIZE = 60;
+
+// RESPONSIVO
+let CELL_SIZE;
+if (window.innerWidth < 600) {
+  CELL_SIZE = Math.floor(window.innerWidth / 8.5);
+} else {
+  CELL_SIZE = 60;
+}
 
 const GRID_PIXEL_SIZE = GRID_SIZE * CELL_SIZE;
 
@@ -10,23 +17,35 @@ const OFFSET_X = (window.innerWidth - GRID_PIXEL_SIZE) / 2;
 const OFFSET_Y = 50;
 
 canvas.width = window.innerWidth;
-canvas.height = GRID_PIXEL_SIZE + 250;
+canvas.height = GRID_PIXEL_SIZE + 300;
 
-let grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(0));
-
-let score = 0;
+let grid;
+let score;
+let gameRunning = false;
 
 const colors = ["#ff4d6d", "#ff758f", "#ff8fa3", "#ffb3c1", "#ffc2d1"];
 
 const shapes = [
-  [[1,1],[1,1]],
+  [[1]],
+  [[1,1]],
+  [[1],[1]],
   [[1,1,1]],
   [[1],[1],[1]],
-  [[1,0],[1,1]]
+  [[1,1],[1,1]],
+  [[1,0],[1,1]],
+  [[0,1],[1,1]],
+  [[1,1,1],[0,1,0]],
+  [[1,1,0],[0,1,1]],
+  [[0,1,1],[1,1,0]],
+  [[1,1,1],[1,0,0]],
+  [[1,1,1],[0,0,1]],
+  [[1,0,0],[1,1,1]],
+  [[0,0,1],[1,1,1]],
+  [[1,1,1,1]],
+  [[1],[1],[1],[1]]
 ];
 
 let availableShapes = [];
-
 let dragging = null;
 let offsetX = 0;
 let offsetY = 0;
@@ -35,6 +54,11 @@ let offsetY = 0;
 function startGame() {
   document.getElementById("menu").style.display = "none";
   canvas.style.display = "block";
+
+  grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(0));
+  score = 0;
+  gameRunning = true;
+
   generateShapes();
   gameLoop();
 }
@@ -43,23 +67,27 @@ function startGame() {
 function generateShapes() {
   availableShapes = [];
 
-  const spacing = 180;
-  const totalWidth = spacing * 2;
-  const startX = (canvas.width - totalWidth) / 2;
+  const spacing = CELL_SIZE * 3;
+  const startX = (canvas.width - spacing * 2) / 2;
 
   for (let i = 0; i < 3; i++) {
+    let x = startX + i * spacing;
+    let y = GRID_PIXEL_SIZE + 80;
+
     availableShapes.push({
       shape: shapes[Math.floor(Math.random() * shapes.length)],
       color: colors[Math.floor(Math.random() * colors.length)],
-      x: startX + i * spacing,
-      y: GRID_PIXEL_SIZE + 80,
-      originalX: startX + i * spacing,
-      originalY: GRID_PIXEL_SIZE + 80
+      x,
+      y,
+      originalX: x,
+      originalY: y
     });
   }
+
+  if (checkGameOver()) gameOver();
 }
 
-// PEGAR POSIÇÃO (FUNCIONA PRA MOUSE E TOQUE)
+// POSIÇÃO
 function getPosition(e) {
   const rect = canvas.getBoundingClientRect();
 
@@ -76,17 +104,19 @@ function getPosition(e) {
   }
 }
 
-// COMEÇAR DRAG
+// DRAG
 function startDrag(e) {
+  if (!gameRunning) return;
+
   let pos = getPosition(e);
 
   availableShapes.forEach(obj => {
-    let width = obj.shape[0].length * CELL_SIZE;
-    let height = obj.shape.length * CELL_SIZE;
+    let w = obj.shape[0].length * CELL_SIZE;
+    let h = obj.shape.length * CELL_SIZE;
 
     if (
-      pos.x > obj.x && pos.x < obj.x + width &&
-      pos.y > obj.y && pos.y < obj.y + height
+      pos.x > obj.x && pos.x < obj.x + w &&
+      pos.y > obj.y && pos.y < obj.y + h
     ) {
       dragging = obj;
       offsetX = pos.x - obj.x;
@@ -95,9 +125,8 @@ function startDrag(e) {
   });
 }
 
-// MOVER
 function moveDrag(e) {
-  if (!dragging) return;
+  if (!dragging || !gameRunning) return;
 
   let pos = getPosition(e);
 
@@ -105,18 +134,28 @@ function moveDrag(e) {
   dragging.y = pos.y - offsetY;
 }
 
-// SOLTAR
 function endDrag() {
-  if (!dragging) return;
+  if (!dragging || !gameRunning) return;
 
-  let gridX = Math.floor((dragging.x - OFFSET_X) / CELL_SIZE);
-  let gridY = Math.floor((dragging.y - OFFSET_Y) / CELL_SIZE);
+  let w = dragging.shape[0].length * CELL_SIZE;
+  let h = dragging.shape.length * CELL_SIZE;
+
+  let centerX = dragging.x + w / 2;
+  let centerY = dragging.y + h / 2;
+
+  let gridX = Math.round((centerX - OFFSET_X) / CELL_SIZE - dragging.shape[0].length / 2);
+  let gridY = Math.round((centerY - OFFSET_Y) / CELL_SIZE - dragging.shape.length / 2);
 
   if (canPlace(dragging.shape, gridX, gridY)) {
-    placeShape(dragging);
+    placeShapeAt(dragging, gridX, gridY);
+
     availableShapes = availableShapes.filter(s => s !== dragging);
 
-    if (availableShapes.length === 0) generateShapes();
+    if (availableShapes.length === 0) {
+      generateShapes();
+    } else {
+      if (checkGameOver()) gameOver();
+    }
   } else {
     dragging.x = dragging.originalX;
     dragging.y = dragging.originalY;
@@ -125,26 +164,14 @@ function endDrag() {
   dragging = null;
 }
 
-// EVENTOS MOUSE
+// EVENTOS
 canvas.addEventListener("mousedown", startDrag);
 canvas.addEventListener("mousemove", moveDrag);
 canvas.addEventListener("mouseup", endDrag);
 
-// EVENTOS TOUCH 📱
-canvas.addEventListener("touchstart", (e) => {
-  e.preventDefault();
-  startDrag(e);
-});
-
-canvas.addEventListener("touchmove", (e) => {
-  e.preventDefault();
-  moveDrag(e);
-});
-
-canvas.addEventListener("touchend", (e) => {
-  e.preventDefault();
-  endDrag();
-});
+canvas.addEventListener("touchstart", e => { e.preventDefault(); startDrag(e); });
+canvas.addEventListener("touchmove", e => { e.preventDefault(); moveDrag(e); });
+canvas.addEventListener("touchend", e => { e.preventDefault(); endDrag(); });
 
 // GRID
 function drawGrid() {
@@ -215,11 +242,8 @@ function canPlace(shape, x, y) {
 }
 
 // COLOCAR
-function placeShape(obj) {
+function placeShapeAt(obj, gridX, gridY) {
   const { shape, color } = obj;
-
-  let gridX = Math.floor((obj.x - OFFSET_X) / CELL_SIZE);
-  let gridY = Math.floor((obj.y - OFFSET_Y) / CELL_SIZE);
 
   shape.forEach((row, i) => {
     row.forEach((val, j) => {
@@ -257,8 +281,39 @@ function clearLines() {
   document.getElementById("score").innerText = "Pontuação: " + score;
 }
 
+// GAME OVER
+function checkGameOver() {
+  for (let obj of availableShapes) {
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        if (canPlace(obj.shape, x, y)) return false;
+      }
+    }
+  }
+  return true;
+}
+
+function gameOver() {
+  gameRunning = false;
+
+  const screen = document.getElementById("gameOverScreen");
+  const scoreText = document.getElementById("finalScore");
+
+  scoreText.innerText = "Pontuação: " + score;
+
+  screen.style.display = "flex";
+
+  setTimeout(() => {
+    screen.style.display = "none";
+    document.getElementById("menu").style.display = "flex";
+    canvas.style.display = "none";
+  }, 3000);
+}
+
 // LOOP
 function gameLoop() {
+  if (!gameRunning) return;
+
   drawGrid();
   drawShapes();
   requestAnimationFrame(gameLoop);

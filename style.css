@@ -32,6 +32,29 @@ body {
   border-radius: 10px;
 }
 
+/* GAME OVER */
+#gameOverScreen {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.9);
+  color: white;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 20;
+}
+
+#gameOverScreen h1 {
+  font-size: 50px;
+  margin-bottom: 20px;
+}
+
+#gameOverScreen p {
+  font-size: 25px;
+}
+
 /* JOGO */
 canvas {
   display: none;
