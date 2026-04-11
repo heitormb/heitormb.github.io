@@ -3,58 +3,34 @@ const ctx = canvas.getContext("2d");
 
 const GRID_SIZE = 8;
 
-let CELL_SIZE;
-
-// 📱 TAMANHO PERFEITO
-if (window.innerWidth < 600) {
-  const screen = Math.min(window.innerWidth, window.innerHeight);
-  CELL_SIZE = Math.floor((screen * 0.8) / GRID_SIZE);
-} else {
-  CELL_SIZE = 60;
-}
+// 📱 cálculo seguro
+let CELL_SIZE = window.innerWidth < 600
+  ? Math.floor(window.innerWidth / 9)
+  : 60;
 
 const GRID_PIXEL_SIZE = GRID_SIZE * CELL_SIZE;
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+// centralização REAL
 const OFFSET_X = (canvas.width - GRID_PIXEL_SIZE) / 2;
-const OFFSET_Y = (canvas.height - GRID_PIXEL_SIZE) / 2 - 40;
+const OFFSET_Y = 80;
 
 let grid;
-let gameRunning = false;
+let dragging = null;
+let offsetX = 0;
+let offsetY = 0;
 
-// 🎨 PALETAS
 let palettes = {
-  rosa: {
-    pieces: ["#ff4d6d","#ff758f","#ff8fa3"],
-    gameBg: "#222",
-    menuBg: "linear-gradient(45deg,#ff9a9e,#fad0c4)"
-  },
-  azul: {
-    pieces: ["#4d96ff","#6bc1ff"],
-    gameBg: "#1a1a2e",
-    menuBg: "linear-gradient(45deg,#2193b0,#6dd5ed)"
-  },
-  neon: {
-    pieces: ["#39ff14","#00ffcc"],
-    gameBg: "#000",
-    menuBg: "linear-gradient(45deg,#000,#333)"
-  },
-  dark: {
-    pieces: ["#777","#aaa"],
-    gameBg: "#111",
-    menuBg: "linear-gradient(45deg,#232526,#414345)"
-  },
-  rainbow: {
-    pieces: ["red","orange","yellow","green","blue","indigo","violet"],
-    gameBg: "#111",
-    menuBg: "linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet)"
-  }
+  rosa: { pieces:["#ff4d6d","#ff8fa3"], bg:"#222", menu:"pink" },
+  azul: { pieces:["#4d96ff","#8fd3ff"], bg:"#1a1a2e", menu:"blue" },
+  neon: { pieces:["#39ff14","#00ffcc"], bg:"#000", menu:"black" },
+  dark: { pieces:["#777","#aaa"], bg:"#111", menu:"gray" },
+  rainbow: { pieces:["red","orange","yellow","green","blue","purple"], bg:"#111", menu:"linear-gradient(45deg, red, orange, yellow, green, blue, purple)" }
 };
 
-let currentPalette = palettes.rosa;
-let colors = currentPalette.pieces;
+let current = palettes.rosa;
 
 const shapes = [
   [[1]], [[1,1]], [[1],[1]],
@@ -62,236 +38,145 @@ const shapes = [
   [[1,1],[1,1]]
 ];
 
-let availableShapes = [];
-let dragging = null;
-let offsetX = 0;
-let offsetY = 0;
+let pieces = [];
 
-// MENU
-function applyPalettePreview() {
-  const selected = document.getElementById("paletteSelect").value;
-  document.body.style.background = palettes[selected].menuBg;
+function applyPalettePreview(){
+  const v = document.getElementById("paletteSelect").value;
+  document.body.style.background = palettes[v].menu;
 }
 
-function startGame() {
-  const selected = document.getElementById("paletteSelect").value;
-  currentPalette = palettes[selected];
-  colors = currentPalette.pieces;
+function startGame(){
+  const v = document.getElementById("paletteSelect").value;
+  current = palettes[v];
 
-  canvas.style.background = currentPalette.gameBg;
-  document.body.style.background = currentPalette.menuBg;
-
+  canvas.style.background = current.bg;
   document.getElementById("menu").style.display = "none";
   canvas.style.display = "block";
 
-  grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(0));
-  gameRunning = true;
+  grid = Array.from({length:GRID_SIZE},()=>Array(GRID_SIZE).fill(0));
 
-  generateShapes();
-  gameLoop();
+  spawnPieces();
+  loop();
 }
 
-// GERAR
-function generateShapes() {
-  availableShapes = [];
+function spawnPieces(){
+  pieces = [];
 
-  const spacing = CELL_SIZE * 3;
-  const startX = (canvas.width - spacing * 2) / 2;
-
-  for (let i = 0; i < 3; i++) {
-    let x = startX + i * spacing;
-    let y = OFFSET_Y + GRID_PIXEL_SIZE + 40;
-
-    availableShapes.push({
-      shape: shapes[Math.floor(Math.random() * shapes.length)],
-      color: colors[Math.floor(Math.random() * colors.length)],
-      x, y,
-      originalX: x,
-      originalY: y
+  for(let i=0;i<3;i++){
+    pieces.push({
+      shape: shapes[Math.floor(Math.random()*shapes.length)],
+      color: current.pieces[Math.floor(Math.random()*current.pieces.length)],
+      x: 100 + i*120,
+      y: GRID_PIXEL_SIZE + 120,
+      ox:100 + i*120,
+      oy:GRID_PIXEL_SIZE + 120
     });
   }
 }
 
-// POSIÇÃO
-function getPosition(e) {
-  const rect = canvas.getBoundingClientRect();
+function getPos(e){
+  const r = canvas.getBoundingClientRect();
   return e.touches
-    ? { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top }
-    : { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    ? {x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top}
+    : {x:e.clientX-r.left,y:e.clientY-r.top};
 }
 
-// EVENTOS
-canvas.addEventListener("mousedown", startDrag);
-canvas.addEventListener("mousemove", moveDrag);
-canvas.addEventListener("mouseup", endDrag);
+canvas.onmousedown = startDrag;
+canvas.onmousemove = moveDrag;
+canvas.onmouseup = endDrag;
 
-canvas.addEventListener("touchstart", e => { e.preventDefault(); startDrag(e); });
-canvas.addEventListener("touchmove", e => { e.preventDefault(); moveDrag(e); });
-canvas.addEventListener("touchend", e => { e.preventDefault(); endDrag(); });
+canvas.ontouchstart = e=>{e.preventDefault();startDrag(e);}
+canvas.ontouchmove = e=>{e.preventDefault();moveDrag(e);}
+canvas.ontouchend = e=>{e.preventDefault();endDrag(e);}
 
-// DRAG
-function startDrag(e) {
-  let pos = getPosition(e);
+function startDrag(e){
+  let p=getPos(e);
 
-  availableShapes.forEach(obj => {
-    let w = obj.shape[0].length * CELL_SIZE;
-    let h = obj.shape.length * CELL_SIZE;
+  pieces.forEach(o=>{
+    let w=o.shape[0].length*CELL_SIZE;
+    let h=o.shape.length*CELL_SIZE;
 
-    if (pos.x > obj.x && pos.x < obj.x + w &&
-        pos.y > obj.y && pos.y < obj.y + h) {
-      dragging = obj;
-      offsetX = pos.x - obj.x;
-      offsetY = pos.y - obj.y;
+    if(p.x>o.x&&p.x<o.x+w&&p.y>o.y&&p.y<o.y+h){
+      dragging=o;
+      offsetX=p.x-o.x;
+      offsetY=p.y-o.y;
     }
   });
 }
 
-function moveDrag(e) {
-  if (!dragging) return;
-  let pos = getPosition(e);
-  dragging.x = pos.x - offsetX;
-  dragging.y = pos.y - offsetY;
+function moveDrag(e){
+  if(!dragging)return;
+  let p=getPos(e);
+  dragging.x=p.x-offsetX;
+  dragging.y=p.y-offsetY;
 }
 
-function endDrag() {
-  if (!dragging) return;
+function endDrag(){
+  if(!dragging)return;
 
-  let snap = getSnapPosition(dragging);
+  let gx=Math.floor((dragging.x-OFFSET_X)/CELL_SIZE);
+  let gy=Math.floor((dragging.y-OFFSET_Y)/CELL_SIZE);
 
-  if (snap && canPlace(dragging.shape, snap.x, snap.y)) {
-    placeShapeAt(dragging, snap.x, snap.y);
-    availableShapes = availableShapes.filter(s => s !== dragging);
-    if (availableShapes.length === 0) generateShapes();
-  } else {
-    dragging.x = dragging.originalX;
-    dragging.y = dragging.originalY;
-  }
-
-  dragging = null;
-}
-
-// SNAP
-function getSnapPosition(obj) {
-  let w = obj.shape[0].length * CELL_SIZE;
-  let h = obj.shape.length * CELL_SIZE;
-
-  let cx = obj.x + w / 2;
-  let cy = obj.y + h / 2;
-
-  let gx = Math.round((cx - OFFSET_X) / CELL_SIZE - obj.shape[0].length / 2);
-  let gy = Math.round((cy - OFFSET_Y) / CELL_SIZE - obj.shape.length / 2);
-
-  return { x: gx, y: gy };
-}
-
-// GRID
-function drawGrid() {
-  for (let y = 0; y < GRID_SIZE; y++) {
-    for (let x = 0; x < GRID_SIZE; x++) {
-
-      ctx.strokeStyle = "#555";
-      ctx.strokeRect(
-        OFFSET_X + x * CELL_SIZE,
-        OFFSET_Y + y * CELL_SIZE,
-        CELL_SIZE,
-        CELL_SIZE
-      );
-
-      if (grid[y][x]) {
-        ctx.fillStyle = grid[y][x];
-        ctx.fillRect(
-          OFFSET_X + x * CELL_SIZE + 2,
-          OFFSET_Y + y * CELL_SIZE + 2,
-          CELL_SIZE - 4,
-          CELL_SIZE - 4
-        );
-      }
-    }
-  }
-}
-
-// PREVIEW
-function drawPreview() {
-  if (!dragging) return;
-
-  let snap = getSnapPosition(dragging);
-  let valid = canPlace(dragging.shape, snap.x, snap.y);
-
-  ctx.globalAlpha = 0.5;
-  ctx.fillStyle = valid ? "#00ff88" : "#ff4d6d";
-
-  dragging.shape.forEach((row, i) => {
-    row.forEach((val, j) => {
-      if (val) {
-        ctx.fillRect(
-          OFFSET_X + (snap.x + j) * CELL_SIZE,
-          OFFSET_Y + (snap.y + i) * CELL_SIZE,
-          CELL_SIZE - 2,
-          CELL_SIZE - 2
-        );
-      }
-    });
-  });
-
-  ctx.globalAlpha = 1;
-}
-
-// PEÇAS
-function drawShapes() {
-  availableShapes.forEach(obj => {
-    ctx.fillStyle = obj.color;
-
-    obj.shape.forEach((row, y) => {
-      row.forEach((val, x) => {
-        if (val) {
-          ctx.fillRect(
-            obj.x + x * CELL_SIZE,
-            obj.y + y * CELL_SIZE,
-            CELL_SIZE - 2,
-            CELL_SIZE - 2
-          );
-        }
+  if(canPlace(dragging.shape,gx,gy)){
+    dragging.shape.forEach((r,i)=>{
+      r.forEach((v,j)=>{
+        if(v) grid[gy+i][gx+j]=dragging.color;
       });
     });
-  });
+
+    pieces = pieces.filter(p=>p!==dragging);
+    if(pieces.length===0) spawnPieces();
+  }else{
+    dragging.x=dragging.ox;
+    dragging.y=dragging.oy;
+  }
+
+  dragging=null;
 }
 
-// LÓGICA
-function canPlace(shape, x, y) {
-  for (let i = 0; i < shape.length; i++) {
-    for (let j = 0; j < shape[i].length; j++) {
-      if (shape[i][j]) {
-        let nx = x + j;
-        let ny = y + i;
-
-        if (nx < 0 || ny < 0 || nx >= GRID_SIZE || ny >= GRID_SIZE || grid[ny][nx])
-          return false;
+function canPlace(s,x,y){
+  for(let i=0;i<s.length;i++){
+    for(let j=0;j<s[i].length;j++){
+      if(s[i][j]){
+        let nx=x+j,ny=y+i;
+        if(nx<0||ny<0||nx>=GRID_SIZE||ny>=GRID_SIZE||grid[ny][nx]) return false;
       }
     }
   }
   return true;
 }
 
-function placeShapeAt(obj, gx, gy) {
-  obj.shape.forEach((row, i) => {
-    row.forEach((val, j) => {
-      if (val) grid[gy + i][gx + j] = obj.color;
+function drawGrid(){
+  for(let y=0;y<GRID_SIZE;y++){
+    for(let x=0;x<GRID_SIZE;x++){
+      ctx.strokeRect(OFFSET_X+x*CELL_SIZE,OFFSET_Y+y*CELL_SIZE,CELL_SIZE,CELL_SIZE);
+
+      if(grid[y][x]){
+        ctx.fillStyle=grid[y][x];
+        ctx.fillRect(OFFSET_X+x*CELL_SIZE+2,OFFSET_Y+y*CELL_SIZE+2,CELL_SIZE-4,CELL_SIZE-4);
+      }
+    }
+  }
+}
+
+function drawPieces(){
+  pieces.forEach(o=>{
+    ctx.fillStyle=o.color;
+    o.shape.forEach((r,y)=>{
+      r.forEach((v,x)=>{
+        if(v){
+          ctx.fillRect(o.x+x*CELL_SIZE,o.y+y*CELL_SIZE,CELL_SIZE-2,CELL_SIZE-2);
+        }
+      });
     });
   });
 }
 
-// LOOP
-function gameLoop() {
-  if (!gameRunning) return;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+function loop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
   drawGrid();
-  drawPreview();
-  drawShapes();
-
-  requestAnimationFrame(gameLoop);
+  drawPieces();
+  requestAnimationFrame(loop);
 }
 
-// INIT
 applyPalettePreview();
