@@ -1,9 +1,9 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+const scoreText = document.getElementById("score");
 
 const GRID_SIZE = 8;
 
-// 📱 cálculo seguro
 let CELL_SIZE = window.innerWidth < 600
   ? Math.floor(window.innerWidth / 9)
   : 60;
@@ -13,7 +13,6 @@ const GRID_PIXEL_SIZE = GRID_SIZE * CELL_SIZE;
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// centralização REAL
 const OFFSET_X = (canvas.width - GRID_PIXEL_SIZE) / 2;
 const OFFSET_Y = 80;
 
@@ -21,7 +20,9 @@ let grid;
 let dragging = null;
 let offsetX = 0;
 let offsetY = 0;
+let score = 0;
 
+// 🎨 PALETAS
 let palettes = {
   rosa: { pieces:["#ff4d6d","#ff8fa3"], bg:"#222", menu:"pink" },
   azul: { pieces:["#4d96ff","#8fd3ff"], bg:"#1a1a2e", menu:"blue" },
@@ -40,6 +41,7 @@ const shapes = [
 
 let pieces = [];
 
+// MENU
 function applyPalettePreview(){
   const v = document.getElementById("paletteSelect").value;
   document.body.style.background = palettes[v].menu;
@@ -54,26 +56,36 @@ function startGame(){
   canvas.style.display = "block";
 
   grid = Array.from({length:GRID_SIZE},()=>Array(GRID_SIZE).fill(0));
+  score = 0;
+  updateScore();
 
   spawnPieces();
   loop();
 }
 
+// 🔥 POSICIONAMENTO CORRIGIDO
 function spawnPieces(){
   pieces = [];
 
+  const spacing = CELL_SIZE * 3;
+  const totalWidth = spacing * 2;
+  const startX = (canvas.width - totalWidth) / 2;
+
   for(let i=0;i<3;i++){
+    let x = startX + i * spacing;
+    let y = OFFSET_Y + GRID_PIXEL_SIZE + 40;
+
     pieces.push({
       shape: shapes[Math.floor(Math.random()*shapes.length)],
       color: current.pieces[Math.floor(Math.random()*current.pieces.length)],
-      x: 100 + i*120,
-      y: GRID_PIXEL_SIZE + 120,
-      ox:100 + i*120,
-      oy:GRID_PIXEL_SIZE + 120
+      x, y,
+      ox: x,
+      oy: y
     });
   }
 }
 
+// POSIÇÃO
 function getPos(e){
   const r = canvas.getBoundingClientRect();
   return e.touches
@@ -81,6 +93,7 @@ function getPos(e){
     : {x:e.clientX-r.left,y:e.clientY-r.top};
 }
 
+// EVENTOS
 canvas.onmousedown = startDrag;
 canvas.onmousemove = moveDrag;
 canvas.onmouseup = endDrag;
@@ -89,6 +102,7 @@ canvas.ontouchstart = e=>{e.preventDefault();startDrag(e);}
 canvas.ontouchmove = e=>{e.preventDefault();moveDrag(e);}
 canvas.ontouchend = e=>{e.preventDefault();endDrag(e);}
 
+// DRAG
 function startDrag(e){
   let p=getPos(e);
 
@@ -114,15 +128,20 @@ function moveDrag(e){
 function endDrag(){
   if(!dragging)return;
 
-  let gx=Math.floor((dragging.x-OFFSET_X)/CELL_SIZE);
-  let gy=Math.floor((dragging.y-OFFSET_Y)/CELL_SIZE);
+  let gx=Math.round((dragging.x-OFFSET_X)/CELL_SIZE);
+  let gy=Math.round((dragging.y-OFFSET_Y)/CELL_SIZE);
 
   if(canPlace(dragging.shape,gx,gy)){
     dragging.shape.forEach((r,i)=>{
       r.forEach((v,j)=>{
-        if(v) grid[gy+i][gx+j]=dragging.color;
+        if(v){
+          grid[gy+i][gx+j]=dragging.color;
+          score++;
+        }
       });
     });
+
+    updateScore();
 
     pieces = pieces.filter(p=>p!==dragging);
     if(pieces.length===0) spawnPieces();
@@ -134,6 +153,12 @@ function endDrag(){
   dragging=null;
 }
 
+// SCORE
+function updateScore(){
+  scoreText.innerText = "Pontuação: " + score;
+}
+
+// LÓGICA
 function canPlace(s,x,y){
   for(let i=0;i<s.length;i++){
     for(let j=0;j<s[i].length;j++){
@@ -146,6 +171,7 @@ function canPlace(s,x,y){
   return true;
 }
 
+// GRID
 function drawGrid(){
   for(let y=0;y<GRID_SIZE;y++){
     for(let x=0;x<GRID_SIZE;x++){
@@ -153,12 +179,18 @@ function drawGrid(){
 
       if(grid[y][x]){
         ctx.fillStyle=grid[y][x];
-        ctx.fillRect(OFFSET_X+x*CELL_SIZE+2,OFFSET_Y+y*CELL_SIZE+2,CELL_SIZE-4,CELL_SIZE-4);
+        ctx.fillRect(
+          OFFSET_X+x*CELL_SIZE+2,
+          OFFSET_Y+y*CELL_SIZE+2,
+          CELL_SIZE-4,
+          CELL_SIZE-4
+        );
       }
     }
   }
 }
 
+// PEÇAS
 function drawPieces(){
   pieces.forEach(o=>{
     ctx.fillStyle=o.color;
@@ -172,6 +204,7 @@ function drawPieces(){
   });
 }
 
+// LOOP
 function loop(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   drawGrid();
