@@ -4,9 +4,19 @@ const scoreText = document.getElementById("score");
 
 const GRID_SIZE = 8;
 
-let CELL_SIZE = window.innerWidth < 600
-  ? Math.floor(window.innerWidth / 9)
-  : 60;
+let CELL_SIZE;
+
+if (window.innerWidth < 600) {
+  const screenW = window.innerWidth;
+  const screenH = window.innerHeight;
+
+  // 🔥 usa só 60% da altura pra grid
+  const maxGridHeight = screenH * 0.6;
+
+  CELL_SIZE = Math.floor(maxGridHeight / GRID_SIZE);
+} else {
+  CELL_SIZE = 60;
+}
 
 const GRID_PIXEL_SIZE = GRID_SIZE * CELL_SIZE;
 
