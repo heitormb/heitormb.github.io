@@ -3,9 +3,15 @@ const ctx = canvas.getContext("2d");
 
 const GRID_SIZE = 8;
 
-let CELL_SIZE = window.innerWidth < 600
-  ? Math.floor(window.innerWidth / 5.5)
-  : 60;
+let CELL_SIZE;
+
+// 📱 TAMANHO PERFEITO
+if (window.innerWidth < 600) {
+  const screen = Math.min(window.innerWidth, window.innerHeight);
+  CELL_SIZE = Math.floor((screen * 0.8) / GRID_SIZE);
+} else {
+  CELL_SIZE = 60;
+}
 
 const GRID_PIXEL_SIZE = GRID_SIZE * CELL_SIZE;
 
@@ -13,7 +19,7 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 const OFFSET_X = (canvas.width - GRID_PIXEL_SIZE) / 2;
-const OFFSET_Y = (canvas.height - GRID_PIXEL_SIZE) / 2 - 50;
+const OFFSET_Y = (canvas.height - GRID_PIXEL_SIZE) / 2 - 40;
 
 let grid;
 let gameRunning = false;
@@ -85,7 +91,7 @@ function startGame() {
   gameLoop();
 }
 
-// GERAR PEÇAS
+// GERAR
 function generateShapes() {
   availableShapes = [];
 
@@ -114,7 +120,7 @@ function getPosition(e) {
     : { x: e.clientX - rect.left, y: e.clientY - rect.top };
 }
 
-// DRAG
+// EVENTOS
 canvas.addEventListener("mousedown", startDrag);
 canvas.addEventListener("mousemove", moveDrag);
 canvas.addEventListener("mouseup", endDrag);
@@ -123,8 +129,8 @@ canvas.addEventListener("touchstart", e => { e.preventDefault(); startDrag(e); }
 canvas.addEventListener("touchmove", e => { e.preventDefault(); moveDrag(e); });
 canvas.addEventListener("touchend", e => { e.preventDefault(); endDrag(); });
 
+// DRAG
 function startDrag(e) {
-  if (!gameRunning) return;
   let pos = getPosition(e);
 
   availableShapes.forEach(obj => {
@@ -178,7 +184,7 @@ function getSnapPosition(obj) {
   return { x: gx, y: gy };
 }
 
-// GRID (CORREÇÃO AQUI)
+// GRID
 function drawGrid() {
   for (let y = 0; y < GRID_SIZE; y++) {
     for (let x = 0; x < GRID_SIZE; x++) {
@@ -191,7 +197,6 @@ function drawGrid() {
         CELL_SIZE
       );
 
-      // 🔥 CORREÇÃO: desenhar peças
       if (grid[y][x]) {
         ctx.fillStyle = grid[y][x];
         ctx.fillRect(
