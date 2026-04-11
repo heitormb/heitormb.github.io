@@ -11,8 +11,8 @@ let CELL_SIZE = window.innerWidth < 600
 
 const GRID_PIXEL_SIZE = GRID_SIZE * CELL_SIZE;
 
-// 🔥 AUMENTADO (resolve corte das peças)
-canvas.width = GRID_PIXEL_SIZE + 40;
+// 🔥 MAIS ESPAÇO PRA NÃO CORTAR
+canvas.width = GRID_PIXEL_SIZE + 80;
 canvas.height = GRID_PIXEL_SIZE + 260;
 
 let OFFSET_X = 20;
@@ -47,7 +47,7 @@ const shapes = [
 
 let pieces = [];
 
-// 🎨 BACKGROUND
+// 🎨 FUNDO
 function applyPalettePreview(){
   const v = document.getElementById("paletteSelect").value;
   const bg = palettes[v].menu;
@@ -79,14 +79,15 @@ function startGame(){
   loop();
 }
 
-// SPAWN CORRIGIDO
+// 🚀 SPAWN PERFEITO
 function spawnPieces(){
   pieces = [];
 
   let spacing = CELL_SIZE * 2;
-  let totalWidth = 0;
+  let sideMargin = 40;
 
   let temp = [];
+  let totalWidth = 0;
 
   for(let i=0;i<3;i++){
     let shape = shapes[Math.floor(Math.random()*shapes.length)];
@@ -98,8 +99,14 @@ function spawnPieces(){
 
   totalWidth += spacing * 2;
 
-  let startX = (canvas.width - totalWidth) / 2;
+  let usableWidth = canvas.width - sideMargin * 2;
 
+  if(totalWidth > usableWidth){
+    spacing = CELL_SIZE;
+    totalWidth = temp.reduce((s,o)=>s+o.width,0) + spacing * 2;
+  }
+
+  let startX = (canvas.width - totalWidth) / 2;
   let x = startX;
 
   temp.forEach(obj=>{
