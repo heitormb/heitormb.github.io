@@ -11,9 +11,9 @@ let CELL_SIZE = window.innerWidth < 600
 
 const GRID_PIXEL_SIZE = GRID_SIZE * CELL_SIZE;
 
-// 🎨 canvas menor
+// 🔥 AUMENTADO (resolve corte das peças)
 canvas.width = GRID_PIXEL_SIZE + 40;
-canvas.height = GRID_PIXEL_SIZE + 180;
+canvas.height = GRID_PIXEL_SIZE + 260;
 
 let OFFSET_X = 20;
 let OFFSET_Y = 20;
@@ -27,13 +27,12 @@ let offsetY = 0;
 
 // 🎨 PALETAS
 let palettes = {
-  rosa: { pieces:["#ff4d6d","#ff8fa3"], bg:"#222", menu:"pink" },
-  azul: { pieces:["#4d96ff","#8fd3ff"], bg:"#1a1a2e", menu:"blue" },
-  neon: { pieces:["#39ff14","#00ffcc"], bg:"#000", menu:"black" },
-  dark: { pieces:["#777","#aaa"], bg:"#111", menu:"gray" },
+  rosa: { pieces:["#ff4d6d","#ff8fa3"], menu:"pink" },
+  azul: { pieces:["#4d96ff","#8fd3ff"], menu:"blue" },
+  neon: { pieces:["#39ff14","#00ffcc"], menu:"black" },
+  dark: { pieces:["#777","#aaa"], menu:"gray" },
   rainbow: {
     pieces: ["#ff0000","#ff7f00","#ffff00","#00ff00","#0000ff","#4b0082","#9400d3"],
-    bg: "linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet)",
     menu: "linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet)"
   }
 };
@@ -48,19 +47,25 @@ const shapes = [
 
 let pieces = [];
 
-// 🎨 BACKGROUND MENU
+// 🎨 BACKGROUND
 function applyPalettePreview(){
   const v = document.getElementById("paletteSelect").value;
   const bg = palettes[v].menu;
-  document.body.style.background = bg;
+  const bgDiv = document.getElementById("bg");
+
+  bgDiv.style.background = bg;
+
+  if(bg.startsWith("linear-gradient")){
+    bgDiv.style.animation = "gradientMove 6s ease infinite";
+  } else {
+    bgDiv.style.animation = "none";
+  }
 }
 
 // START
 function startGame(){
   const v = document.getElementById("paletteSelect").value;
   current = palettes[v];
-
-  canvas.style.background = current.bg;
 
   document.getElementById("menu").style.display = "none";
   canvas.style.display = "block";
@@ -74,31 +79,43 @@ function startGame(){
   loop();
 }
 
-// SPAWN (CORRIGIDO)
+// SPAWN CORRIGIDO
 function spawnPieces(){
   pieces = [];
 
   let spacing = CELL_SIZE * 2;
-  let currentX = 20;
+  let totalWidth = 0;
+
+  let temp = [];
 
   for(let i=0;i<3;i++){
     let shape = shapes[Math.floor(Math.random()*shapes.length)];
+    let w = shape[0].length * CELL_SIZE;
 
-    let pieceWidth = shape[0].length * CELL_SIZE;
+    temp.push({shape, width:w});
+    totalWidth += w;
+  }
 
-    let x = currentX;
-    let y = GRID_PIXEL_SIZE + 40;
+  totalWidth += spacing * 2;
+
+  let startX = (canvas.width - totalWidth) / 2;
+
+  let x = startX;
+
+  temp.forEach(obj=>{
+    let y = GRID_PIXEL_SIZE + 60;
 
     pieces.push({
-      shape,
+      shape: obj.shape,
       color: current.pieces[Math.floor(Math.random()*current.pieces.length)],
-      x, y,
+      x,
+      y,
       ox: x,
       oy: y
     });
 
-    currentX += pieceWidth + spacing;
-  }
+    x += obj.width + spacing;
+  });
 }
 
 // POSIÇÃO
@@ -170,7 +187,7 @@ function placeShape(shape,x,y,color){
   });
 }
 
-// LIMPAR LINHAS
+// LIMPAR
 function clearLines(){
   let cleared = 0;
 
@@ -222,6 +239,7 @@ function canPlace(s,x,y){
 function drawGrid(){
   for(let y=0;y<GRID_SIZE;y++){
     for(let x=0;x<GRID_SIZE;x++){
+      ctx.strokeStyle = "#444";
       ctx.strokeRect(OFFSET_X+x*CELL_SIZE,OFFSET_Y+y*CELL_SIZE,CELL_SIZE,CELL_SIZE);
 
       if(grid[y][x]){

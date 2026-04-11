@@ -2,9 +2,16 @@ body {
   margin: 0;
   font-family: Arial;
   text-align: center;
+}
+
+/* FUNDO GLOBAL */
+#bg {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
   transition: background 0.5s;
   background-size: 400% 400%;
-  animation: gradientMove 6s ease infinite;
 }
 
 /* ANIMAÇÃO DO GRADIENTE */
@@ -19,7 +26,7 @@ body {
   position: fixed;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0,0,0,0.6);
   color: white;
   display: flex;
   justify-content: center;
@@ -30,6 +37,7 @@ body {
 canvas {
   display: none;
   margin: auto;
+  background: #111;
 }
 
 /* SCORE */
