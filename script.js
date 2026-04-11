@@ -3,28 +3,61 @@ const ctx = canvas.getContext("2d");
 
 const GRID_SIZE = 8;
 
-// RESPONSIVO
+// 📱 RESPONSIVO
 let CELL_SIZE;
 if (window.innerWidth < 600) {
-  CELL_SIZE = Math.floor(window.innerWidth / 8.5);
+  CELL_SIZE = Math.floor(window.innerWidth / 7);
 } else {
   CELL_SIZE = 60;
 }
 
 const GRID_PIXEL_SIZE = GRID_SIZE * CELL_SIZE;
 
-const OFFSET_X = (window.innerWidth - GRID_PIXEL_SIZE) / 2;
-const OFFSET_Y = 50;
-
+// DEFINE CANVAS
 canvas.width = window.innerWidth;
 canvas.height = GRID_PIXEL_SIZE + 300;
+
+// CENTRALIZA
+const OFFSET_X = (canvas.width - GRID_PIXEL_SIZE) / 2;
+const OFFSET_Y = 50;
 
 let grid;
 let score;
 let gameRunning = false;
 
-const colors = ["#ff4d6d", "#ff758f", "#ff8fa3", "#ffb3c1", "#ffc2d1"];
+// 🎨 PALETAS
+let palettes = {
+  rosa: {
+    pieces: ["#ff4d6d", "#ff758f", "#ff8fa3", "#ffb3c1", "#ffc2d1"],
+    gameBg: "#222",
+    menuBg: "linear-gradient(45deg, #ff9a9e, #fad0c4)"
+  },
+  azul: {
+    pieces: ["#4d96ff", "#6bc1ff", "#8fd3ff", "#b3e5ff", "#ccefff"],
+    gameBg: "#1a1a2e",
+    menuBg: "linear-gradient(45deg, #2193b0, #6dd5ed)"
+  },
+  neon: {
+    pieces: ["#39ff14", "#00ffcc", "#00e5ff", "#66ff66"],
+    gameBg: "#000",
+    menuBg: "linear-gradient(45deg, #000000, #434343)"
+  },
+  dark: {
+    pieces: ["#555", "#777", "#999", "#bbb"],
+    gameBg: "#111",
+    menuBg: "linear-gradient(45deg, #232526, #414345)"
+  },
+  rainbow: {
+    pieces: ["#ff0000", "#ff7f00", "#ffff00", "#00ff00", "#0000ff", "#4b0082", "#8f00ff"],
+    gameBg: "#111",
+    menuBg: "linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet)"
+  }
+};
 
+let currentPalette = palettes.rosa;
+let colors = currentPalette.pieces;
+
+// PEÇAS
 const shapes = [
   [[1]],
   [[1,1]],
@@ -50,8 +83,22 @@ let dragging = null;
 let offsetX = 0;
 let offsetY = 0;
 
+// 🎨 PREVIEW MENU
+function applyPalettePreview() {
+  const selected = document.getElementById("paletteSelect").value;
+  const palette = palettes[selected];
+  document.body.style.background = palette.menuBg;
+}
+
 // MENU
 function startGame() {
+  const selected = document.getElementById("paletteSelect").value;
+  currentPalette = palettes[selected];
+  colors = currentPalette.pieces;
+
+  canvas.style.background = currentPalette.gameBg;
+  document.body.style.background = currentPalette.menuBg;
+
   document.getElementById("menu").style.display = "none";
   canvas.style.display = "block";
 
@@ -67,7 +114,7 @@ function startGame() {
 function generateShapes() {
   availableShapes = [];
 
-  const spacing = CELL_SIZE * 3;
+  const spacing = CELL_SIZE * 4;
   const startX = (canvas.width - spacing * 2) / 2;
 
   for (let i = 0; i < 3; i++) {
@@ -137,17 +184,10 @@ function moveDrag(e) {
 function endDrag() {
   if (!dragging || !gameRunning) return;
 
-  let w = dragging.shape[0].length * CELL_SIZE;
-  let h = dragging.shape.length * CELL_SIZE;
+  let snap = getSnapPosition(dragging);
 
-  let centerX = dragging.x + w / 2;
-  let centerY = dragging.y + h / 2;
-
-  let gridX = Math.round((centerX - OFFSET_X) / CELL_SIZE - dragging.shape[0].length / 2);
-  let gridY = Math.round((centerY - OFFSET_Y) / CELL_SIZE - dragging.shape.length / 2);
-
-  if (canPlace(dragging.shape, gridX, gridY)) {
-    placeShapeAt(dragging, gridX, gridY);
+  if (snap && canPlace(dragging.shape, snap.x, snap.y)) {
+    placeShapeAt(dragging, snap.x, snap.y);
 
     availableShapes = availableShapes.filter(s => s !== dragging);
 
@@ -162,6 +202,20 @@ function endDrag() {
   }
 
   dragging = null;
+}
+
+// SNAP
+function getSnapPosition(obj) {
+  let w = obj.shape[0].length * CELL_SIZE;
+  let h = obj.shape.length * CELL_SIZE;
+
+  let centerX = obj.x + w / 2;
+  let centerY = obj.y + h / 2;
+
+  let gridX = Math.round((centerX - OFFSET_X) / CELL_SIZE - obj.shape[0].length / 2);
+  let gridY = Math.round((centerY - OFFSET_Y) / CELL_SIZE - obj.shape.length / 2);
+
+  return { x: gridX, y: gridY };
 }
 
 // EVENTOS
@@ -199,6 +253,32 @@ function drawGrid() {
       }
     }
   }
+}
+
+// PREVIEW
+function drawPreview() {
+  if (!dragging) return;
+
+  let snap = getSnapPosition(dragging);
+  let valid = canPlace(dragging.shape, snap.x, snap.y);
+
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = valid ? "#00ff88" : "#ff4d6d";
+
+  dragging.shape.forEach((row, i) => {
+    row.forEach((val, j) => {
+      if (val) {
+        ctx.fillRect(
+          OFFSET_X + (snap.x + j) * CELL_SIZE,
+          OFFSET_Y + (snap.y + i) * CELL_SIZE,
+          CELL_SIZE - 2,
+          CELL_SIZE - 2
+        );
+      }
+    });
+  });
+
+  ctx.globalAlpha = 1;
 }
 
 // PEÇAS
@@ -315,6 +395,11 @@ function gameLoop() {
   if (!gameRunning) return;
 
   drawGrid();
+  drawPreview();
   drawShapes();
+
   requestAnimationFrame(gameLoop);
 }
+
+// INICIA COM PALETA DO MENU
+applyPalettePreview();

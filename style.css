@@ -1,8 +1,8 @@
 body {
   margin: 0;
   text-align: center;
-  background: linear-gradient(45deg, #ff9a9e, #fad0c4);
   font-family: Arial;
+  transition: background 0.5s;
 }
 
 /* MENU */
@@ -10,7 +10,7 @@ body {
   position: fixed;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0,0,0,0.7);
   color: white;
   display: flex;
   flex-direction: column;
@@ -30,6 +30,14 @@ body {
   background: pink;
   cursor: pointer;
   border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+#paletteSelect {
+  margin-top: 10px;
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 8px;
 }
 
 /* GAME OVER */
@@ -58,7 +66,6 @@ body {
 /* JOGO */
 canvas {
   display: none;
-  background: #222;
   margin-top: 20px;
   border: 3px solid white;
 }

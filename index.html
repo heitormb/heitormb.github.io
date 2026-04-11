@@ -2,15 +2,25 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Para Mel 💖</title>
+  <title>Para Você 💖</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <!-- MENU -->
 <div id="menu">
-  <h1>💖 Para Mel 💖</h1>
+  <h1>💖 Para Você 💖</h1>
+
   <button onclick="startGame()">Começar</button>
+
+  <label>🎨 Escolha a paleta:</label>
+  <select id="paletteSelect" onchange="applyPalettePreview()">
+    <option value="rosa">Rosa 💖</option>
+    <option value="azul">Azul 💙</option>
+    <option value="neon">Neon 🟢</option>
+    <option value="dark">Dark 🖤</option>
+    <option value="rainbow">Arco-íris 🌈</option>
+  </select>
 </div>
 
 <!-- GAME OVER -->
