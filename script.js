@@ -4,33 +4,26 @@ const scoreText = document.getElementById("score");
 
 const GRID_SIZE = 8;
 
-let CELL_SIZE;
-
-if (window.innerWidth < 600) {
-  const screenW = window.innerWidth;
-  const screenH = window.innerHeight;
-
-  // 🔥 usa só 60% da altura pra grid
-  const maxGridHeight = screenH * 0.6;
-
-  CELL_SIZE = Math.floor(maxGridHeight / GRID_SIZE);
-} else {
-  CELL_SIZE = 60;
-}
+// 📱 GRID RESPONSIVA
+let CELL_SIZE = window.innerWidth < 600
+  ? Math.floor(window.innerHeight * 0.45 / GRID_SIZE)
+  : 55;
 
 const GRID_PIXEL_SIZE = GRID_SIZE * CELL_SIZE;
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+// 🎨 canvas menor
+canvas.width = GRID_PIXEL_SIZE + 40;
+canvas.height = GRID_PIXEL_SIZE + 180;
 
-const OFFSET_X = (canvas.width - GRID_PIXEL_SIZE) / 2;
-const OFFSET_Y = 80;
+let OFFSET_X = 20;
+let OFFSET_Y = 20;
 
 let grid;
+let score = 0;
+
 let dragging = null;
 let offsetX = 0;
 let offsetY = 0;
-let score = 0;
 
 // 🎨 PALETAS
 let palettes = {
@@ -38,7 +31,11 @@ let palettes = {
   azul: { pieces:["#4d96ff","#8fd3ff"], bg:"#1a1a2e", menu:"blue" },
   neon: { pieces:["#39ff14","#00ffcc"], bg:"#000", menu:"black" },
   dark: { pieces:["#777","#aaa"], bg:"#111", menu:"gray" },
-  rainbow: { pieces:["red","orange","yellow","green","blue","purple"], bg:"#111", menu:"linear-gradient(45deg, red, orange, yellow, green, blue, purple)" }
+  rainbow: {
+    pieces: ["#ff0000","#ff7f00","#ffff00","#00ff00","#0000ff","#4b0082","#9400d3"],
+    bg: "linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet)",
+    menu: "linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet)"
+  }
 };
 
 let current = palettes.rosa;
@@ -51,21 +48,25 @@ const shapes = [
 
 let pieces = [];
 
-// MENU
+// 🎨 BACKGROUND MENU
 function applyPalettePreview(){
   const v = document.getElementById("paletteSelect").value;
-  document.body.style.background = palettes[v].menu;
+  const bg = palettes[v].menu;
+  document.body.style.background = bg;
 }
 
+// START
 function startGame(){
   const v = document.getElementById("paletteSelect").value;
   current = palettes[v];
 
   canvas.style.background = current.bg;
+
   document.getElementById("menu").style.display = "none";
   canvas.style.display = "block";
 
   grid = Array.from({length:GRID_SIZE},()=>Array(GRID_SIZE).fill(0));
+
   score = 0;
   updateScore();
 
@@ -73,25 +74,30 @@ function startGame(){
   loop();
 }
 
-// 🔥 POSICIONAMENTO CORRIGIDO
+// SPAWN (CORRIGIDO)
 function spawnPieces(){
   pieces = [];
 
-  const spacing = CELL_SIZE * 3;
-  const totalWidth = spacing * 2;
-  const startX = (canvas.width - totalWidth) / 2;
+  let spacing = CELL_SIZE * 2;
+  let currentX = 20;
 
   for(let i=0;i<3;i++){
-    let x = startX + i * spacing;
-    let y = OFFSET_Y + GRID_PIXEL_SIZE + 40;
+    let shape = shapes[Math.floor(Math.random()*shapes.length)];
+
+    let pieceWidth = shape[0].length * CELL_SIZE;
+
+    let x = currentX;
+    let y = GRID_PIXEL_SIZE + 40;
 
     pieces.push({
-      shape: shapes[Math.floor(Math.random()*shapes.length)],
+      shape,
       color: current.pieces[Math.floor(Math.random()*current.pieces.length)],
       x, y,
       ox: x,
       oy: y
     });
+
+    currentX += pieceWidth + spacing;
   }
 }
 
@@ -142,16 +148,8 @@ function endDrag(){
   let gy=Math.round((dragging.y-OFFSET_Y)/CELL_SIZE);
 
   if(canPlace(dragging.shape,gx,gy)){
-    dragging.shape.forEach((r,i)=>{
-      r.forEach((v,j)=>{
-        if(v){
-          grid[gy+i][gx+j]=dragging.color;
-          score++;
-        }
-      });
-    });
-
-    updateScore();
+    placeShape(dragging.shape,gx,gy,dragging.color);
+    clearLines();
 
     pieces = pieces.filter(p=>p!==dragging);
     if(pieces.length===0) spawnPieces();
@@ -161,6 +159,45 @@ function endDrag(){
   }
 
   dragging=null;
+}
+
+// COLOCAR
+function placeShape(shape,x,y,color){
+  shape.forEach((r,i)=>{
+    r.forEach((v,j)=>{
+      if(v) grid[y+i][x+j] = color;
+    });
+  });
+}
+
+// LIMPAR LINHAS
+function clearLines(){
+  let cleared = 0;
+
+  for(let y=0;y<GRID_SIZE;y++){
+    if(grid[y].every(v=>v)){
+      grid[y].fill(0);
+      cleared++;
+    }
+  }
+
+  for(let x=0;x<GRID_SIZE;x++){
+    let full = true;
+    for(let y=0;y<GRID_SIZE;y++){
+      if(!grid[y][x]) full=false;
+    }
+    if(full){
+      for(let y=0;y<GRID_SIZE;y++){
+        grid[y][x]=0;
+      }
+      cleared++;
+    }
+  }
+
+  if(cleared>0){
+    score += cleared * 10;
+    updateScore();
+  }
 }
 
 // SCORE
@@ -181,14 +218,14 @@ function canPlace(s,x,y){
   return true;
 }
 
-// GRID
+// DESENHO
 function drawGrid(){
   for(let y=0;y<GRID_SIZE;y++){
     for(let x=0;x<GRID_SIZE;x++){
       ctx.strokeRect(OFFSET_X+x*CELL_SIZE,OFFSET_Y+y*CELL_SIZE,CELL_SIZE,CELL_SIZE);
 
       if(grid[y][x]){
-        ctx.fillStyle=grid[y][x];
+        ctx.fillStyle = grid[y][x];
         ctx.fillRect(
           OFFSET_X+x*CELL_SIZE+2,
           OFFSET_Y+y*CELL_SIZE+2,
@@ -200,7 +237,6 @@ function drawGrid(){
   }
 }
 
-// PEÇAS
 function drawPieces(){
   pieces.forEach(o=>{
     ctx.fillStyle=o.color;
@@ -214,7 +250,6 @@ function drawPieces(){
   });
 }
 
-// LOOP
 function loop(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   drawGrid();
